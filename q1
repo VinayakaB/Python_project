@@ -1,53 +1,139 @@
-import numpy as np
-objective=[1,3]
-constraint1=[10,5,4]
-constraint2=[(1,2),(1,0),(0,1)]
-class LPsolver():
-    def solve(self,a,b,c):
-        l_b=len(b)
-        l_a=len(a)
-        arr=np.array(c)
-        arr=np.concatenate((arr,np.identity(len(b))),1)
-        b=np.array(b)
-        x=[0]*l_a
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from numpy import arange
+        
+class LPsolver:
 
-        arr=np.insert(arr,len(a)+l_b,b,1)
-        B=np.array([0]*l_b)
-        C=np.array(a+[0]*l_b)
-        ran=range(l_a,l_a+l_b)
-        while(1):
-            maxpos=[]
-            minpos=[]
-            for i in range(l_a+l_b):
-                maxpos.append(C[i]-np.dot(B,arr[:,i]))
+    def __init__(self):                                                     # Initialising instance variables
+        self.objective=None
+        self.constraints=None
+        self.table=None
+        self.result=None
+    
+    def solve(self,L,M,option):
+        return (self.Simplex(L,M))
 
+    def Simplex(self,L,M):                                                  # Simplex function takes two lists as arguments
+            
+        # List L contains co-efficients of variables in the objective
+        # e.g.- If objective is (2x+5y+7z) then L=[2,5,7]
+        # List M contains co-efficients of variables in the constraints and the last element is the constant
+        # List M is a nested list
+        # e.g. - If the constraints are x<=200 , y<=10 , z<=200 and x+2y+3z<=700 then --  
+        # M=[[1,0,0,200],[0,1,0,10],[0,0,1,200],[1,2,3,700]], i.e.,
+        # 1.x+0.y+0.z<=200 , 0.x+1.y+0.z<=10 , 0.x+0.y+1.z<=200 and 1.x+2.y+3.z<=700
+        
+        from numpy import array
+        self.objective=array(L,float)
+        self.constraints=array(M,float)
+        no_of_variables=len(self.objective)                                 # variable to store total number of variables
+        no_of_equations=len(self.constraints)                               # variable to store total number of equations(constraints)
+        self.table=array([[0 for i in range(no_of_variables+no_of_equations+2)] for j in range(no_of_equations+1)],float)   # initialising the augmented matrix
+        for i in range(no_of_equations):
+            for j in range(no_of_variables):
+                self.table[i][j]=self.constraints[i][j]                     # filling up the matrix
+        for i in range(no_of_variables):
+            self.table[-1][i]=(-1)*self.objective[i]                        # filling up the matrix
+        for i in range(no_of_equations+1):
+            self.table[i][no_of_variables+i]=1                              # filling up the matrix
+        for i in range(no_of_equations):
+            self.table[i][-1]=self.constraints[i][-1]                       # filling up the matrix
+        self.table[-1][-1]=0                                                # matrix ready
+        for i in range(no_of_equations+1):
+            self.table[i][no_of_variables+i]=self.table[i][-1]/self.table[i][no_of_variables+i]
+        flag=0
+        if(min(self.table[-1])>=0):                                         # testing terminal condition
+            flag=1
+        while(flag==0):                                                     # loop
+            pivot_col=self.table[-1].tolist().index(min(self.table[-1]))    # finding column of pivot
+            pivot_row,temp,flag2=-1,0,0                                         
+            for i in range(no_of_equations):                                                        
+                if(self.table[i][pivot_col]>0 and (pivot_row==-1 or self.table[i][-1]/self.table[i][pivot_col]<temp)):   # finding row of pivot
+                    pivot_row=i
+                    temp=self.table[i][-1]/self.table[i][pivot_col]
+                    flag2=1
+            if(flag2==0):
+                return ("Unbound")                                          # terminal condition 
+            pivot=self.table[pivot_row][pivot_col]
+            for i in range(no_of_equations+1):                              # loop to set all other elements of pivot's column to 0 by row operations
+                if(i==pivot_row):
+                    continue
+                scale=self.table[i][pivot_col]/pivot
+                self.table[i]=self.table[i]-(scale*self.table[pivot_row])
+            if(min(self.table[-1])>=0):
+                flag=1                                                      
+            x_pos,y_pos,count_1,count_2=0,0,0,0
+            for i in range(no_of_equations+1):
+                if(self.table[i][0]!=0):
+                    count_1+=1
+                    x_pos=self.table[i][-1]/self.table[i][0]
+                if(self.table[i][1]!=0):
+                    count_2+=1
+                    y_pos=self.table[i][-1]/self.table[i][1]
+            if(count_1>1):
+                x_pos=0
+            if(count_2>1):
+                y_pos=0
+            plt.plot(x_pos,y_pos,"o",color="c")
+        self.result=""                                                      
+        for i in range(no_of_variables):                                    
+            count,temp,flag=0,0,1
+            for j in range(no_of_equations+1):
+                if(self.table[j][i]!=0):
+                    count+=1
+                    if(count>1):
+                        flag=0
+                        break
+                    temp=self.table[j][-1]/self.table[j][i]
+            if(flag==1):
+                self.result+="x_"+str(i+1)+" = "+str(temp)+" ; "
+            else:
+                self.result+="x_"+str(i+1)+"=0 ; "
+        self.result+="Maximum value of objective = "+str(self.table[-1][-1])
+        self.plot()
+        return (self.result)
+    def plot(self):
+        Color=["c","b","r","g","o"]
+        count=0                                                                 
+        plt.xlabel("x_values")                                            
+        plt.ylabel("y_values")                                            
+        Legend=[]
+        x_max,y_max=0,0
+        for i in self.constraints:                                          
+            if(i[0]!=0):
+                temp=i[2]/i[0]
+                if(temp>x_max):
+                    x_max=temp
+            if(i[1]!=0):
+                temp=i[2]/i[1]
+                if(temp>y_max):
+                    y_max=temp
+        for i in self.constraints:                                          
+            if(i[0]!=0 and i[1]!=0):
+                plt.plot([0,i[2]/i[0]],[i[2]/i[1],0],color=Color[count%5])
+                x=list(arange(0,i[2]/i[0],0.01))
+                y1=list(map(lambda X:(i[2]-i[0]*X)/i[1],x))
+                y2=list(map(lambda X:0,x))
+                plt.fill_between(x,y1,y2,color=Color[count%5],alpha=0.7)
+            elif(i[0]!=0):
+                plt.axvline(i[2],color=Color[count%5])
+                x=list(arange(0,i[2]/i[0],0.01))
+                y1=list(map(lambda X:y_max,x))
+                y2=list(map(lambda X:0,x))
+                plt.fill_between(x,y1,y2,color=Color[count%5],alpha=0.7)        
+            else:
+                plt.axhline(i[2],color=Color[count%5])
+                x=list(arange(0,x_max,0.01))
+                y1=list(map(lambda X:i[2]/i[1],x))
+                y2=list(map(lambda X:0,x))
+                plt.fill_between(x,y1,y2,color=Color[count%5],alpha=0.7)        
+            Legend.append(mpatches.Patch(color=Color[count%5],label="Constraint "+str(count+1)))    
+            count+=1
+        Legend.append(mpatches.Patch(color="w",label="The innermost region is the required region"))
+        Legend.append(mpatches.Patch(color="w",label="and its boundary points are the critical points"))
+        plt.legend(handles=Legend)                                          
+        plt.show()                                                          
 
-            c=maxpos.index(max(maxpos))
-
-            if maxpos[c]<=0:
-                break
-            for i in range(l_b):
-                if arr[i,c]!=0:
-                    minpos.append(arr[i,-1]/arr[i,c])
-                else:
-                    minpos.append(100000000000)
-            q=filter(lambda x:x>0,minpos)
-            if q==[]:
-                return "unbounded function"
-                break
-            r=minpos.index(min(q))
-
-            B[r]=C[c]
-            ran[r]=c
-            arr[r,:]=arr[r,:]/arr[r,c]
-            for i in range(l_b):
-                if(i!=r):
-                    arr[i,:]=arr[i,:]-(arr[i,c]/arr[r,c])*arr[r,:]
-
-        for i in range(len(ran)):
-            if ran[i]<l_a:
-                x[ran[i]]=arr[i,-1]
-        x=map(int,x)
-
-        x.append(sum([x[i]*a[i] for i in range(l_a)]))
-        return x
+lps=LPsolver()                                                              
+solution=lps.solve([3,2],[[2,1,18],[2,3,42],[3,1,24]],option="Simplex")     
+print(solution)
