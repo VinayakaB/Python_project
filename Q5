@@ -1,44 +1,120 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from numpy import arange
+from numpy import array
+from numpy.polynomial import polynomial as P
+import math
+from math import *
 class Integrate:
-	def solve(self,order,coeffs,method):
-		def f(x):
-			sum=0
-			for i in range(order+1):
-				sum+=(coeffs[i]*(x**(order-i)))
-			return sum
-		if method=='trapezoid':
-			a=float(input('enter the lower limit of interval: '))
-			b=float(input('enter the upper limit of interval: '))
-			n=int((b-a)/0.0005)
-			x_values=[a]
-			for i in range(1,n):
-				x_values.append(float(str(x_values[0]+(0.001*i))[:5]))
-			x_values.append(b)
-			def trapezoid_solution(f,x_values,n):
-				sum=0
-				for i in range(1,n):
-					sum+=f(x_values[i])
-				sum*=2
-				sum+=(f(x_values[0])+f(x_values[n]))
-				ans=((x_values[n]-x_values[0])*sum)/(2*n)
-				return ans
-			return trapezoid_solution(f,x_values,n)
-		elif method=='simpson':
-			a=float(input('enter the lower limit of interval: '))
-			b=float(input('enter the upper limit of interval: '))
-			n=int((b-a)/0.0005)
-			x_values=[a]
-			for i in range(1,n):
-				x_values.append(float(str(x_values[0]+(0.0005*i)[:5]))
-			x_values.append(b)
-			def simpson_solution(f,x_values,n):
-				sum1,sum2,sum=0,0,0
-				for i in range(1,n,2):
-					sum1+=f(x_values[i])
-				sum1*=4
-				for i in range(2,n,2):
-					sum2+=f(x_values[i])
-				sum2*=2
-				sum+=(f(x_values[0])+f(x_values[n])+sum1+sum2)
-				ans=((x_values[n]-x_values[0])*sum)/(3*n)
-				return ans
-			return simpson_solution(f,x_values,n)
+
+    def __init__(self):
+        self.function=None
+        self.interval=None
+        self.no_of_partitions=None
+        self.result=None
+
+    def solve(self,S,interval,method,N=10000):
+        
+        # N is an optional argument used for controlling the number of partitions
+        
+        if(method=="trapezoid"):
+            return (self.TrapezoidalRule(S,interval,N))
+        else:
+            return (self.SimpsonsRule(S,interval,N))
+    
+    def TrapezoidalRule(self,S,interval,N):                                 # The function takes 3 user inputs
+        
+        # S is the string containing the function to be
+        # integrated. The string must contain only those 
+        # functions which are available in "math" module,
+        # and the syntax used in S must be the same as is
+        # used in Python. e.g.,
+        # If f(x)=sin(x)^2 + cos(x) + e^(x^0.5) + log(x), then --
+        # S=sin(x)**2+cos(x)+exp(x**0.5)+log(x) OR
+        # S=pow(sin(x),2)+cos(x)+exp(pow(x,0.5))+log(x)
+        # L is a list of two values containing the lower
+        # and upper limits of integration. e.g.,-
+        # If we have to integrate f(x) from 1.5 to 6, then--
+        # L=[1.5,6]
+        # N is the variable used for controlling the number
+        # of partitions.
+        
+        self.interval=interval
+        self.no_of_partitions=N
+        try:
+            (lambda x:eval(S))(self.interval[0])
+            self.function=lambda x:eval(S)                                  # lambda function which converts user input into a function
+        except:
+            return("Input is not in proper Python syntax")
+        length=(self.interval[1]-self.interval[0])/self.no_of_partitions    # variable to store the length of each sub-interval
+        sum_of_values=self.function(self.interval[0])                       # variable to store sum of function values
+        for i in range(1,N):                                                # calculating sum of function values
+            sum_of_values+=2*self.function(self.interval[0]+length*i)
+        sum_of_values+=self.function(self.interval[1])
+        self.result=((self.interval[1]-self.interval[0])*sum_of_values)/(2*self.no_of_partitions)  # calculating result
+        self.plot()
+        return (self.result)                                                # return result
+    
+    def plot(self):
+        length=(self.interval[1]-self.interval[0])/self.no_of_partitions    
+        x=list(arange(self.interval[0],self.interval[1],0.01))
+        y=list(map(lambda num:self.function(num), x))
+        plt.plot(x,y,linewidth=2.5,color="g")                               
+        plt.plot([self.interval[0]]*2,[0,self.function(self.interval[0])],color="b")
+        prev_x,prev_y=self.interval[0],self.function(self.interval[0])
+        for i in range(self.no_of_partitions):
+            current_x=prev_x+length
+            current_y=self.function(current_x)
+            plt.plot([current_x]*2,[0,current_y],color="m")
+            plt.plot([prev_x,current_x],[prev_y,current_y],color="m",linewidth=1.2)
+            prev_x=current_x
+            prev_y=current_y
+            
+        plt.axis("equal")
+        plt.axvline(0,color="k",linewidth=2.5)
+        plt.axhline(0,color="k",linewidth=2.5)
+        plt.xlabel("function argument")
+        plt.ylabel("function values")
+        Legend=[]                                                           
+        Legend.append(mpatches.Patch(color="b",label="graph "))    
+        Legend.append(mpatches.Patch(color="m",label="Sides of trapeziums"))
+        plt.legend(handles=Legend)                                          
+        plt.show()          
+    
+    def SimpsonsRule(self,S,interval,N):                                    # The function takes 3 user inputs
+
+        # S is the string containing the function to be
+        # integrated. The string must contain only those 
+        # functions which are available in "math" module,
+        # and the syntax used in S must be the same as is
+        # used in Python. e.g.,
+        # If f(x)=sin(x)^2 + cos(x), then --
+        # S=sin(x)**2+cos(x)+exp(x**0.5)+log(x) OR
+        # S=pow(sin(x),2)+cos(x)+exp(pow(x,0.5))+log(x)
+        # L is a list of two values containing the lower
+        # and upper limits of integration. e.g.,-
+        # If we have to integrate f(x) from 1.5 to 6, then--
+        # L=[1.5,6]
+        # N is the variable used for controlling the number
+        # of partitions.
+
+        self.interval=interval
+        self.no_of_partitions=N
+        try:
+            (lambda x:eval(S))(self.interval[0])
+            self.function=lambda x:eval(S)                                  # lambda function which converts user input into a function
+        except:
+            return("Input is not in proper Python syntax")
+        length=(self.interval[1]-self.interval[0])/(2*self.no_of_partitions)    # variable to store the length of each sub-interval
+        sum_of_values=self.function(self.interval[0])                       # variable to store sum of function values
+        for i in range(1,2*N):                                              # calculating sum of function values
+            temp=self.function(self.interval[0]+length*i)
+            sum_of_values+=2*temp if i%2==0 else 4*temp
+        sum_of_values+=self.function(self.interval[1])
+        self.result=((self.interval[1]-self.interval[0])*sum_of_values)/(6*self.no_of_partitions)      # calculating result
+        return (self.result)                                                # return result      
+    
+igr=Integrate()                                                     # object creation
+for method in ["trapezoid","simpson"]:
+    solution=igr.solve("sin(x)**3+cos(x)**2",[-4,2],method,25)
+    print (solution)
